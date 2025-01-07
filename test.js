@@ -6,6 +6,7 @@ const evChargingMachine = createMachine({
     id: 'evChargingStation',
     initial: 'Idle',
     context: {
+        is_authorized: false,
         prev_state: 'Idle',
         station_state: 'Idle',
         type: '',
@@ -16,6 +17,7 @@ const evChargingMachine = createMachine({
                 a: {
                     target: 'Authorized',
                     actions: assign({
+                        is_authorized: true,
                         prev_state: 'Idle',
                         station_state: 'Authorized',
                         type: 'a',
@@ -28,6 +30,11 @@ const evChargingMachine = createMachine({
                         station_state: 'AuthorizationFailed',
                         type: 'f',
                     }),
+                },
+                s: {
+                    actions: () => {
+                        console.log('Error: Cannot start charging without authorization.');
+                    },
                 },
             },
         },
