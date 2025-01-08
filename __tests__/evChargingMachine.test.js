@@ -1,10 +1,6 @@
-// https://stately.ai/docs/xstate#create-a-more-complex-machine
-// https://docs.google.com/document/d/1ht5pOZ5KykQ_UK9aQVxEmcOl17tSMgBhWB68J63iy-A/edit?usp=sharing
-
 const { createMachine, createActor, assign } = require('xstate');
-const readline = require('readline');
 
-// State machine for EV Charging Station
+// Import the EV Charging Station state machine
 const evChargingMachine = createMachine({
     id: 'evChargingStation',
     initial: 'Idle',
@@ -75,15 +71,10 @@ const evChargingMachine = createMachine({
                     target: 'Authorized',
                     actions: assign({
                         is_authorized: true,
-                        prev_state: 'Idle',
+                        prev_state: 'AuthorizationFailed',
                         station_state: 'Authorized',
                         type: 'a',
                     }),
-                },
-                s: {
-                    actions: () => {
-                        console.log('[ERROR] Cannot start charging after failed authorization.');
-                    },
                 },
             },
         },
@@ -142,57 +133,72 @@ const evChargingMachine = createMachine({
     },
 });
 
-// Service to interpret the state machine
-const evChargingService = createActor(evChargingMachine).start();
+// Unit Tests
+describe('EV Charging State Machine', () => {
+    let service;
 
-// Log every state change
-evChargingService.subscribe((state) => {
-    console.log('=============== STATION STATUS ===============');
-    console.log(`> Entered ${state.context.station_state} state`);
-    console.log(`> Transitioned from ${state.context.prev_state} to ${state.context.station_state} on ${state.context.type}`);
-    console.log('==============================================');
+    beforeEach(() => {
+        service = createActor(evChargingMachine).start();
+    });
+
+    test('Initial state should be Idle', () => {
+        expect(service.getSnapshot().value).toBe('Idle');
+    });
+
+    test('Transition from Idle to Authorized', () => {
+        service.send({ type: 'a' });
+        const state = service.getSnapshot();
+        expect(state.value).toBe('Authorized');
+        expect(state.context.station_state).toBe('Authorized');
+    });
+
+    test('Transition from Idle to AuthorizationFailed', () => {
+        service.send({ type: 'f' });
+        const state = service.getSnapshot();
+        expect(state.value).toBe('AuthorizationFailed');
+        expect(state.context.station_state).toBe('AuthorizationFailed');
+    });
+
+    test('Cannot start charging from Idle without authorization', () => {
+        const consoleSpy = jest.spyOn(console, 'log');
+        service.send({ type: 's' });
+        expect(consoleSpy).toHaveBeenCalledWith('[ERROR] Cannot start charging without authorization.');
+        consoleSpy.mockRestore();
+    });
+
+    test('Transition from Authorized to Starting', () => {
+        service.send({ type: 'a' }); // Move to Authorized
+        service.send({ type: 's' }); // Start charging
+        const state = service.getSnapshot();
+        expect(state.value).toBe('Starting');
+        expect(state.context.station_state).toBe('Starting');
+    });
+
+    test('Transition from Starting to Charging', () => {
+        service.send({ type: 'a' }); // Move to Authorized
+        service.send({ type: 's' }); // Start charging
+        service.send({ type: 'c' }); // Begin charging
+        const state = service.getSnapshot();
+        expect(state.value).toBe('Charging');
+        expect(state.context.station_state).toBe('Charging');
+    });
+
+    test('Reset to Idle from any state', () => {
+        service.send({ type: 'a' }); // Move to Authorized
+        service.send({ type: 's' }); // Start charging
+        service.send({ type: 'r' }); // Reset
+        const state = service.getSnapshot();
+        expect(state.value).toBe('Idle');
+        expect(state.context.station_state).toBe('Idle');
+    });
+
+    test('Stop charging and move to Stopped', () => {
+        service.send({ type: 'a' }); // Move to Authorized
+        service.send({ type: 's' }); // Start charging
+        service.send({ type: 'c' }); // Begin charging
+        service.send({ type: 't' }); // Stop charging
+        const state = service.getSnapshot();
+        expect(state.value).toBe('Stopped');
+        expect(state.context.station_state).toBe('Stopped');
+    });
 });
-
-// Main function
-function logInstructions() {
-    console.log(`
-  EV Charging Station State Machine
-  -----------------------------------
-  Press a key from the following:
-  [a] - Attempt authorization
-  [f] - Simulate failed authorization
-  [s] - Start charging
-  [c] - Begin charging
-  [t] - Stop charging
-  [r] - Reset to Idle
-  [q] - Quit
-  `);
-}
-
-// Handle keyboard input
-const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
-});
-
-console.clear();
-logInstructions();
-
-rl.on('line', (input) => {
-
-    const validKeys = ['a', 'f', 's', 'c', 't', 'r', 'q'];
-
-    if (!validKeys.includes(input)) {
-        console.log('[ERROR] Invalid key. Please try again.');
-        return;
-    }
-
-    if (input === 'q') {
-        console.log('Exiting...');
-        rl.close();
-        process.exit(0);
-    }
-
-    evChargingService.send({ type: input });
-});
-
