@@ -33,7 +33,7 @@ const evChargingMachine = createMachine({
                 },
                 s: {
                     actions: () => {
-                        console.log('Error: Cannot start charging without authorization.');
+                        console.log('[ERROR] Cannot start charging without authorization.');
                     },
                 },
             },
@@ -129,27 +129,25 @@ const evChargingMachine = createMachine({
 const evChargingService = createActor(evChargingMachine).start();
 
 evChargingService.subscribe((state) => {
-    console.log('---------- STATION STATUS----------');
-    console.log(`Entered ${state.context.station_state} state`);
-    console.log(
-        `Transitioned from ${state.context.prev_state} to ${state.context.station_state} on ${state.context.type}`
-    );
-    console.log('-----------------------------------');
+    console.log('========== STATION STATUS ==========');
+    console.log(`> Entered ${state.context.station_state} state`);
+    console.log(`> Transitioned from ${state.context.prev_state} to ${state.context.station_state} on ${state.context.type}`);
+    console.log('====================================');
 });
 
 // Utility to log the current state
 function logInstructions() {
     console.log(`
-  EV Charging Station State Machine:
+  EV Charging Station State Machine
   -----------------------------------
   Press the following keys:
-  - a: Attempt authorization
-  - f: Simulate failed authorization
-  - s: Start charging
-  - c: Begin charging
-  - t: Stop charging
-  - r: Reset to Idle
-  - q: Quit
+  [a] - Attempt authorization
+  [f] - Simulate failed authorization
+  [s] - Start charging
+  [c] - Begin charging
+  [t] - Stop charging
+  [r] - Reset to Idle
+  [q] - Quit
   `);
 }
 
@@ -165,7 +163,7 @@ logInstructions();
 rl.on('line', (input) => {
     const validKeys = ['a', 'f', 's', 'c', 't', 'r', 'q'];
     if (!validKeys.includes(input)) {
-        console.log('Invalid key pressed. Try again.');
+        console.log('[ERROR] Invalid key pressed. Try again.');
         return;
     }
 
