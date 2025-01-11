@@ -16,11 +16,24 @@ const evChargingMachine = createMachine({
             on: {
                 a: {
                     target: 'Authorized',
-                    actions: assign({
-                        is_authorized: true,
-                        prev_state: 'Idle',
-                        station_state: 'Authorized',
-                        type: 'a',
+                    actions: assign((context) => {
+                        const isAuthorized = Math.random() < 0.5;
+                        if (isAuthorized) {
+                            return {
+                                target: 'Authorized',
+                                is_authorized: true,
+                                prev_state: 'Idle',
+                                station_state: 'Authorized',
+                                type: 'a',
+                            };
+                        } else {
+                            return {
+                                target: 'AuthorizationFailed',
+                                prev_state: 'Idle',
+                                station_state: 'AuthorizationFailed',
+                                type: 'f',
+                            };
+                        }
                     }),
                 },
                 f: {
@@ -192,4 +205,3 @@ rl.on('line', (input) => {
 
     evChargingService.send({ type: input });
 });
-
